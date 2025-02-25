@@ -1,0 +1,41 @@
+{
+    "summary": "No summary found",
+    "metrics": {
+        "Create a car.": {
+            "Succ": "5000",
+            "Fail": "0",
+            "Send Rate (TPS)": "23.5",
+            "Max Latency (s)": "2.09",
+            "Min Latency (s)": "0.07",
+            "Avg Latency (s)": "0.27",
+            "Throughput (TPS)": "23.3"
+        },
+        "Change car owner.": {
+            "Succ": "818",
+            "Fail": "0",
+            "Send Rate (TPS)": "27.9",
+            "Max Latency (s)": "2.09",
+            "Min Latency (s)": "0.08",
+            "Avg Latency (s)": "0.25",
+            "Throughput (TPS)": "26.4"
+        },
+        "Query all cars.": {
+            "Succ": "13696",
+            "Fail": "0",
+            "Send Rate (TPS)": "472.1",
+            "Max Latency (s)": "0.04",
+            "Min Latency (s)": "0.01",
+            "Avg Latency (s)": "0.01",
+            "Throughput (TPS)": "472.0"
+        },
+        "Query a car.": {
+            "Succ": "22219",
+            "Fail": "0",
+            "Send Rate (TPS)": "766.1",
+            "Max Latency (s)": "0.04",
+            "Min Latency (s)": "0.00",
+            "Avg Latency (s)": "0.01",
+            "Throughput (TPS)": "766.0"
+        }
+    }
+}

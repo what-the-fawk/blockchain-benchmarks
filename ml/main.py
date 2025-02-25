@@ -1,0 +1,289 @@
+import os
+import subprocess
+import yaml
+import json
+from bs4 import BeautifulSoup
+import numpy as np
+from skopt import Optimizer
+from skopt.space import Real, Integer
+from skopt.utils import use_named_args
+from line_profiler import LineProfiler
+import logging
+import pandas as pd
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import Lasso
+from sklearn.inspection import permutation_importance
+from sklearn.feature_selection import mutual_info_regression, f_regression
+from sklearn.decomposition import PCA
+import shap
+
+
+# 1. SHAP Feature Importance
+def shap_feature_importance(X, y):
+    model = RandomForestRegressor(random_state=42)
+    model.fit(X, y)
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X)
+    shap_sum = np.abs(shap_values).mean(axis=0)
+    shap_importance = pd.DataFrame({'Feature': X.columns, 'SHAP Importance': shap_sum})
+    shap_importance = shap_importance.sort_values(by='SHAP Importance', ascending=False)
+    return shap_importance
+
+# 2. Random Forest Feature Importance
+def random_forest_feature_importance(X, y):
+    model = RandomForestRegressor(random_state=42)
+    model.fit(X, y)
+    rf_importance = pd.DataFrame({'Feature': X.columns, 'RF Importance': model.feature_importances_})
+    rf_importance = rf_importance.sort_values(by='RF Importance', ascending=False)
+    return rf_importance
+
+# 3. L1 Regularization (Lasso) Feature Importance
+def lasso_feature_importance(X, y):
+    model = Lasso(alpha=0.01)
+    model.fit(X, y)
+    lasso_importance = pd.DataFrame({'Feature': X.columns, 'Lasso Coefficient': model.coef_})
+    lasso_importance = lasso_importance.sort_values(by='Lasso Coefficient', ascending=False)
+    return lasso_importance
+
+# 4. Permutation Feature Importance
+def permutation_feature_importance(X, y):
+    model = RandomForestRegressor(random_state=42)
+    model.fit(X, y)
+    perm_importance = permutation_importance(model, X, y, n_repeats=10, random_state=42)
+    perm_importance_df = pd.DataFrame({'Feature': X.columns, 'Permutation Importance': perm_importance.importances_mean})
+    perm_importance_df = perm_importance_df.sort_values(by='Permutation Importance', ascending=False)
+    return perm_importance_df
+
+# 5. Gradient Boosting Feature Importance
+def gradient_boosting_feature_importance(X, y):
+    model = GradientBoostingRegressor(random_state=42)
+    model.fit(X, y)
+    gb_importance = pd.DataFrame({'Feature': X.columns, 'GB Importance': model.feature_importances_})
+    gb_importance = gb_importance.sort_values(by='GB Importance', ascending=False)
+    return gb_importance
+
+
+def load_config(path: str):
+    """
+        Load the configuration file
+    """
+    with open(path, 'r') as f:
+        return yaml.safe_load(f)
+
+
+def transform_caliper_html_to_json(html_file, output_json_file):
+    """
+        Transform html report file to json format
+    """
+    try:
+        with open(html_file, "r", encoding="utf-8") as file:
+            soup = BeautifulSoup(file, "html.parser")
+        
+        summary = soup.find("div", {"id": "summary"}).text.strip() if soup.find("div", {"id": "summary"}) else "No summary found"
+        metrics = {}
+        
+        table = soup.find("table")
+        if table:
+            headers = [th.text.strip() for th in table.find_all("th")]
+            rows = table.find_all("tr")[1:]
+            for row in rows:
+                cells = row.find_all("td")
+                key = cells[0].text.strip()
+                values = {headers[i]: cells[i].text.strip() for i in range(1, len(cells))}
+                metrics[key] = values
+        
+        report_data = {
+            "summary": summary,
+            "metrics": metrics
+        }
+        
+        with open(output_json_file, "w", encoding="utf-8") as json_file:
+            json.dump(report_data, json_file, indent=4)
+        
+        print(f"JSON report successfully created: {output_json_file}")
+    except Exception as e:
+        print(f"Error during conversion: {e}")
+
+
+def calculate_average_tps(json_file):
+    try:
+        json_data = None
+        with open(json_file, "r", encoding="utf-8") as file:
+            json_data = json.load(file)
+        tps_values = []
+        for _, metrics in json_data["metrics"].items():
+            tps_value = float(metrics.get("Throughput (TPS)", 0))
+            tps_values.append(tps_value)
+        
+        if not tps_values:
+            print("No TPS values found.")
+            return None
+        
+        average_tps = sum(tps_values) / len(tps_values)
+        return average_tps
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+
+def objective_function():
+    subprocess.run('cd ../fabric-samples/test-network && ./network.sh up createChannel -s couchdb', shell=True)
+
+    #deploy chaincode
+    chaincode_deploy = 'cd ../fabric-samples/test-network && ./network.sh deployCC -ccn fabcar -ccp ../../caliper-benchmarks/src/fabric/samples/fabcar/go -ccl go'
+    subprocess.run(chaincode_deploy, shell=True)
+
+    # execute benchmark
+    bencmmark = "cd ../caliper-benchmarks/ && npx caliper launch manager --caliper-workspace ./ --caliper-networkconfig networks/fabric/test-network.yaml --caliper-benchconfig benchmarks/samples/fabric/fabcar/config.yaml --caliper-flow-only-test --caliper-fabric-gateway-enabled"
+    subprocess.run(bencmmark, shell=True)
+
+    # process output
+    transform_caliper_html_to_json('../caliper-benchmarks/report.html', 'report.json')
+    objective = calculate_average_tps('report.json')
+
+    # shut down network
+    subprocess.run('cd ../fabric-samples/test-network && ./network.sh down', shell=True)
+    return objective
+
+
+def fill_config(conf, next_point, sample_params):
+    for i in range(len(sample_params)):
+        internal_path = sample_params[i].name.split('.')
+        parts = internal_path[-1].split('|')
+        assert(len(parts) > 0 and len(parts) <= 2)
+        internal_path[-1] = parts[0]
+
+        assert(len(internal_path) > 0)
+        link = conf[internal_path[0]]
+        for j in range(1, len(internal_path)):
+            link = link[internal_path[j]]
+        # print(link)
+        if len(parts) == 1:
+            link = next_point[i]
+        else:
+            link = str(int(next_point[i])) + parts[1]
+        pass
+
+
+def main():
+    # Set up logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger(__name__)
+
+    logger.info("Starting optimization process")
+
+    CONFIG_PATH = '../fabric-samples/test-network/configtx/configtx.yaml'
+    conf = load_config(str(CONFIG_PATH))
+
+    # assert(False, "Config path")
+    logger.info(f"Loaded configuration from {CONFIG_PATH}")
+
+    # TODO: automate config
+
+    sample_params = [
+        Integer(1, 19, name="Orderer.BatchSize.MaxMessageCount|"), # follow style of conf
+        Integer(1, 49, name="Orderer.BatchSize.AbsoluteMaxBytes|MB"), # 49 is max recommended
+        Integer(1, 2048, name="Orderer.BatchSize.PreferredMaxBytes|KB"),
+        Integer(1, 30, name="Orderer.BatchTimeout|s"),
+        Integer(1, 999, name="Profiles.ChannelUsingRaft.Orderer.EtcdRaft.Options.TickInterval|ms"),
+        Integer(1, 100, name="Profiles.ChannelUsingRaft.Orderer.EtcdRaft.Options.ElectionTick"),
+        Integer(1, 10, name="Profiles.ChannelUsingRaft.Orderer.EtcdRaft.Options.HeartbeatTick"),
+        Integer(1, 50, name="Profiles.ChannelUsingRaft.Orderer.EtcdRaft.Options.MaxInflightBlocks"),
+        Integer(1, 128, name="Profiles.ChannelUsingRaft.Orderer.EtcdRaft.Options.SnapshotIntervalSize|MB"),
+    ]
+
+    # TODO: orderer.type == BFT
+
+    NUM_EPOCHS = 5
+    NUM_SNR = 10
+    # learning
+    # TODO: divide all values by the first one (normalize)
+
+    optimizer = Optimizer(
+        dimensions=sample_params,
+        base_estimator="GP",
+        n_initial_points=10,
+        acq_func="gp_hedge",
+        acq_optimizer="auto",
+    )
+
+    def fit(sample_params, optimizer, conf, scores_snr_path="scores_snr.txt", optimals_path="optimals.txt", scores_path="scores.txt") -> tuple[pd.DataFrame, pd.Series]:
+
+        scores = []
+        optimals = []
+        scores_snr = []
+
+        df = pd.DataFrame(columns=[param.name.split('|')[0] for param in sample_params])
+        y = pd.Series(name="Throughput (TPS)")
+
+        for i in range(NUM_EPOCHS):
+            next_point = optimizer.ask()
+
+            df.loc[len(df)] = next_point
+
+            if next_point is None:
+                print("No more points to evaluate.")
+                break
+
+            fill_config(conf, next_point, sample_params)
+
+            with open(CONFIG_PATH, 'w') as f:
+                yaml.dump(conf, f)
+
+            print(f"Next point to evaluate: {next_point}")
+            optimals.append(next_point)
+
+            snr_scores = []
+            for _ in range(NUM_SNR):
+                value = objective_function()
+                snr_scores.append(value)
+                pass
+
+            scores_snr.append(snr_scores)
+            scores.append(snr_scores[0])
+            y.loc[len(y)] = snr_scores[0]
+            print(f"Score: {value}\n")
+            optimizer.tell(next_point, -value)
+
+            with open(scores_path, "a") as f:
+                print(scores[-1], file=f)
+            
+            with open(optimals_path, "a") as f:
+                print(optimals[-1], file=f)
+
+            with open(scores_snr_path, "a") as f:
+                print(scores_snr[-1], file=f)
+
+        return df, y
+
+    profiler = LineProfiler()
+    profiler.add_function(fit)
+    profiler.enable()
+    df, y = fit(sample_params, optimizer, conf)
+    profiler.disable()
+    with open("line_profiler_stats.txt", "w") as f:
+        profiler.print_stats(stream=f)
+
+    shap_feature_importance()
+
+    shap_importance = shap_feature_importance(df, y)
+    rf_importance = random_forest_feature_importance(df, y)
+    lasso_importance = lasso_feature_importance(df, y)
+    perm_importance = permutation_feature_importance(df, y)
+    gb_importance = gradient_boosting_feature_importance(df, y)
+
+    shap_importance.to_csv('shap_feature_importance.csv', index=False)
+    rf_importance.to_csv('random_forest_feature_importance.csv', index=False)
+    lasso_importance.to_csv('lasso_feature_importance.csv', index=False)
+    perm_importance.to_csv('permutation_feature_importance.csv', index=False)
+    gb_importance.to_csv('gradient_boosting_feature_importance.csv', index=False)
+
+    
+
+    
+
+
+
+if __name__ == "__main__":
+    main()
