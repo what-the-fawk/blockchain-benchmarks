@@ -2,4 +2,5 @@ fabric/
 caliper-benchmarks/
 fabric-samples/
 samples-bitly/
+scripts/plan.md
 node_modules

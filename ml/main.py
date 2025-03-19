@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.linear_model import Lasso
 from sklearn.inspection import permutation_importance
-from sklearn.feature_selection import mutual_info_regression, f_regression
+from sklearn.feature_selection import mutual_info_regression, f_regression 
 from sklearn.decomposition import PCA
 import shap
 from collections.abc import Mapping
@@ -206,16 +206,12 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
 
-    # logger.info("Starting optimization process")
-
     CONFIG_PATH = '../fabric-samples/test-network/configtx/configtx.yaml'
     conf = load_config(str(CONFIG_PATH))
     conf_core = load_config('core.yaml')
 
     # assert(False, "Config path")
     # logger.info(f"Loaded configuration from {CONFIG_PATH}")
-
-    # TODO: automate config
 
     sample_params = [
         Integer(1, 19, name="Orderer.BatchSize.MaxMessageCount|"), # follow style of conf
