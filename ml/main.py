@@ -18,9 +18,10 @@ from sklearn.decomposition import PCA
 import shap
 from collections.abc import Mapping
 import re
+from SALib import ProblemSpec
+from sklearn.decomposition import PCA
 
 
-# 1. SHAP Feature Importance
 def shap_feature_importance(X, y):
     model = RandomForestRegressor(random_state=42)
     model.fit(X, y)
@@ -41,9 +42,9 @@ def random_forest_feature_importance(X, y):
 
 # 3. L1 Regularization (Lasso) Feature Importance
 def lasso_feature_importance(X, y):
-    model = Lasso(alpha=0.01)
+    model = Lasso(alpha=0.00001, max_iter=10000)
     model.fit(X, y)
-    lasso_importance = pd.DataFrame({'Feature': X.columns, 'Lasso Coefficient': model.coef_})
+    lasso_importance = pd.DataFrame({'Feature': X.columns, 'Lasso Coefficient': np.abs(model.coef_)})
     lasso_importance = lasso_importance.sort_values(by='Lasso Coefficient', ascending=False)
     return lasso_importance
 
@@ -63,6 +64,51 @@ def gradient_boosting_feature_importance(X, y):
     gb_importance = pd.DataFrame({'Feature': X.columns, 'GB Importance': model.feature_importances_})
     gb_importance = gb_importance.sort_values(by='GB Importance', ascending=False)
     return gb_importance
+
+# 6. Sensitivity Analysis Feature Importance
+def sensitivity_analysis_feature_importance(X, y):
+    model = RandomForestRegressor()
+    model.fit(X, y)
+
+    problem = {
+        'num_vars': X.shape[1],
+        'names': X.columns.tolist(),
+        'bounds': [[X[col].min(), X[col].max()] for col in X.columns]
+    }
+
+    sp = ProblemSpec(problem)
+    sp.sample_saltelli(1000)
+
+    sp.set_results(model.predict(sp.samples))
+    sp.analyze_sobol()
+
+    sobol_df = pd.DataFrame({
+        'Feature': problem['names'],
+        'S1': sp.analysis['S1'],
+        'ST': sp.analysis['ST']
+    }).sort_values(by='ST', ascending=False)
+
+    return sobol_df
+
+def pca_feature_importance(X, y):
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X, y)
+
+    loadings = pd.DataFrame(
+            np.abs(pca.components_),
+            columns=X.columns
+        )
+
+    explained_variance = pca.explained_variance_ratio_
+    weighted_loadings = loadings.multiply(explained_variance, axis=0)
+    importance_scores = weighted_loadings.sum(axis=0).sort_values(ascending=False)
+
+    results = pd.DataFrame({
+        'Feature': importance_scores.index,
+        'Importance': importance_scores.values
+    }).reset_index(drop=True)
+
+    return results
 
 def read_extract_config(config):
     number_with_unit_pattern = re.compile(r'^\s*(-?\d+(\.\d+)?)(.*)$')
@@ -329,20 +375,50 @@ def main():
     with open("line_profiler_stats.txt", "w") as f:
         profiler.print_stats(stream=f)
 
-    # TODO: sensitivity analysis
-    # from sensitivity import SensitivityAnalyzer
-
     shap_importance = shap_feature_importance(X=df, y=y)
     rf_importance = random_forest_feature_importance(X=df, y=y)
     lasso_importance = lasso_feature_importance(X=df, y=y)
     perm_importance = permutation_feature_importance(X=df, y=y)
     gb_importance = gradient_boosting_feature_importance(X=df, y=y)
+    sa_feature_importance = sensitivity_analysis_feature_importance(X=df, y=y)
+    pca_importance = pca_feature_importance(X=df, y=y)
 
     shap_importance.to_csv('shap_feature_importance.csv', index=False)
     rf_importance.to_csv('random_forest_feature_importance.csv', index=False)
     lasso_importance.to_csv('lasso_feature_importance.csv', index=False)
     perm_importance.to_csv('permutation_feature_importance.csv', index=False)
     gb_importance.to_csv('gradient_boosting_feature_importance.csv', index=False)
+    sa_feature_importance.to_csv('sensitivity_analysis_feature_importance.csv', index=False)
+    pca_importance.to_csv('pca_feature_importance.csv', index=False)
+
+    n = 10
+    filtered_samples = []
+
+    for importance_df in [
+        shap_importance, rf_importance, lasso_importance, 
+        perm_importance, gb_importance, sa_feature_importance, pca_importance
+    ]:
+        top_features = set(importance_df['Feature'].head(n))
+        
+        filtered_sample_params = [
+            param for param in sample_params if param.name.split('|')[0] in top_features
+        ]
+        filtered_samples.append(filtered_sample_params)
+
+    optimizer = Optimizer(
+        dimensions=sample_params,
+        base_estimator="GP",
+        n_initial_points=10,
+        acq_func="gp_hedge",
+        acq_optimizer="auto",
+    )
+
+    experiment_count = "1"
+    
+    for params in filtered_samples:
+        fit(params, optimizer, conf, scores_snr_path=experiment_count + "_scores_snr.txt", optimals_path=experiment_count + "_optimals.txt", scores_path=experiment_count + "_scores.txt")
+        experiment_count = str(int(experiment_count) + 1)
+
 
 
 

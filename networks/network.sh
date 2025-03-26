@@ -1,5 +1,18 @@
 # !/bin/bash
 
+FABRIC_CFG=$PWD/config/core.yaml
+CONTAINER_CLI=docker
+CRYPTO=cryptogen
+DATABASE=couchdb
+DOCKER_SOCK=/var/run/docker.sock
+COMPOSE_FILE_BASE=bft-test-net.yaml
+COMPOSE_FILE_COUCH=config/couchdb.yaml
+COMPOSE_FILE_CA=config/fabric-ca.yaml
+NONWORKING_VERSIONS="^1\.0\. ^1\.1\. ^1\.2\. ^1\.3\. ^1\.4\."
+CONTAINER_CLI_COMPOSE=${CONTAINER_CLI}-compose
+
+ORDERER_PATH=config/orderer.yaml
+
 # Check reqs
 check_required_env_vars() {
     local required_env_vars=("$@")
@@ -29,7 +42,6 @@ list_envs() {
 check_requirements() {
     check_required_env_vars "FABRIC_CFG" ""
 
-    ## Check if your have cloned the peer binaries and configuration files.
     peer version > /dev/null 2>&1
 
     if [[ $? -ne 0 || ! -d "./config" ]]; then
@@ -254,7 +266,7 @@ create_orgs() {
     generate_orgs_ccp
 }
 
-start() {
+function start() {
     check_requirements
     create_orgs
 
@@ -273,6 +285,19 @@ start() {
     fi
 }
 
-stop() {
-    
+function stop() {
+  local temp_compose=$COMPOSE_FILE_BASE
+  COMPOSE_FILE_BASE=compose-bft-test-net.yaml
+  COMPOSE_BASE_FILES="-f compose/${COMPOSE_FILE_BASE} -f compose/${CONTAINER_CLI}/${CONTAINER_CLI}-${COMPOSE_FILE_BASE}"
+  COMPOSE_COUCH_FILES="-f compose/${COMPOSE_FILE_COUCH} -f compose/${CONTAINER_CLI}/${CONTAINER_CLI}-${COMPOSE_FILE_COUCH}"
+  COMPOSE_CA_FILES="-f compose/${COMPOSE_FILE_CA} -f compose/${CONTAINER_CLI}/${CONTAINER_CLI}-${COMPOSE_FILE_CA}"
+  COMPOSE_FILES="${COMPOSE_BASE_FILES} ${COMPOSE_COUCH_FILES} ${COMPOSE_CA_FILES}"
+
+  if [ "${CONTAINER_CLI}" == "docker" ]; then
+    DOCKER_SOCK=$DOCKER_SOCK ${CONTAINER_CLI_COMPOSE} ${COMPOSE_FILES} ${COMPOSE_ORG3_FILES} down --volumes --remove-orphans
+  elif [ "${CONTAINER_CLI}" == "podman" ]; then
+    ${CONTAINER_CLI_COMPOSE} ${COMPOSE_FILES} ${COMPOSE_ORG3_FILES} down --volumes
+  else
+    fatalln "Container CLI  ${CONTAINER_CLI} not supported"
+  fi
 }
