@@ -292,8 +292,8 @@ def main():
 
     # TODO: orderer.type == BFT
 
-    NUM_EPOCHS = 5
-    NUM_SNR = 10
+    NUM_EPOCHS = 2
+    NUM_SNR = 1
     # learning
     # TODO: divide all values by the first one (normalize)
 
