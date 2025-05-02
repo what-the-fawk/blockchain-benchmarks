@@ -4,3 +4,4 @@ fabric-samples/
 samples-bitly/
 scripts/plan.md
 node_modules
+test/
