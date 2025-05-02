@@ -1,5 +1,0 @@
-numpy
-bs4
-scikit-optimize
-line_profiler
-pyyaml

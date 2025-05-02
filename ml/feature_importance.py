@@ -49,3 +49,48 @@ def gradient_boosting_feature_importance(X, y):
     gb_importance = pd.DataFrame({'Feature': X.columns, 'GB Importance': model.feature_importances_})
     gb_importance = gb_importance.sort_values(by='GB Importance', ascending=False)
     return gb_importance
+
+# TODO: PCA, sensitivity analysis, etc.
+# def sensitivity_analysis_feature_importance(X, y):
+#     model = RandomForestRegressor()
+#     model.fit(X, y)
+
+#     problem = {
+#         'num_vars': X.shape[1],
+#         'names': X.columns.tolist(),
+#         'bounds': [[X[col].min(), X[col].max()] for col in X.columns]
+#     }
+
+#     sp = ProblemSpec(problem)
+#     sp.sample_saltelli(1000)
+
+#     sp.set_results(model.predict(sp.samples))
+#     sp.analyze_sobol()
+
+#     sobol_df = pd.DataFrame({
+#         'Feature': problem['names'],
+#         'S1': sp.analysis['S1'],
+#         'ST': sp.analysis['ST']
+#     }).sort_values(by='ST', ascending=False)
+
+#     return sobol_df
+
+# def pca_feature_importance(X, y):
+#     pca = PCA(n_components=2)
+#     X_pca = pca.fit_transform(X, y)
+
+#     loadings = pd.DataFrame(
+#             np.abs(pca.components_),
+#             columns=X.columns
+#         )
+
+#     explained_variance = pca.explained_variance_ratio_
+#     weighted_loadings = loadings.multiply(explained_variance, axis=0)
+#     importance_scores = weighted_loadings.sum(axis=0).sort_values(ascending=False)
+
+#     results = pd.DataFrame({
+#         'Feature': importance_scores.index,
+#         'Importance': importance_scores.values
+#     }).reset_index(drop=True)
+
+#     return results
