@@ -18,13 +18,10 @@ sudo apt-get update && apt-get install -y software-properties-common && \
     curl \
     && apt-get clean
 
-git clone https://github.com/what-the-fawk/blockchain-benchmarks && cd blockchain-benchmarks
-git checkout checkpoint1 & cd ..
-
 VIRTUAL_ENV=/opt/venv
 python3.10 -m venv $VIRTUAL_ENV
 PATH="$VIRTUAL_ENV/bin:$PATH"
-pip3 install --no-cache-dir -r blockchain-benchmarks/ml/requirements.txt
+pip3 install --no-cache-dir -r ./ml/requirements.txt
 
 sudo curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs
