@@ -27,7 +27,8 @@ sudo curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs
 
 npm install --only=prod @hyperledger/caliper-cli && \
-npx caliper bind --caliper-bind-sut fabric:2.4
+npx caliper bind --caliper-bind-sut fabric:2.4 && \
+npm install jq
 
 sudo apt-get update && apt-get install -y ca-certificates curl && \
     install -m 0755 -d /etc/apt/keyrings && \
