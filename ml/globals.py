@@ -13,7 +13,7 @@ def get_model_type():
     return MODEL_TYPE
 
 
-MAX_EVALUATIONS = 3 # TODO: change to 1500
-BO_INIT_EVALUATIONS = 3
+MAX_EVALUATIONS = 500
+BO_INIT_EVALUATIONS = 300
 
 SRC_FOLDER = '../artefacts/'

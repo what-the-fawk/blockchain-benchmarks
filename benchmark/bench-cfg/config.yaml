@@ -1,0 +1,63 @@
+test:
+  workers:
+    number: 7
+  rounds:
+    - label: Create a car.
+      txNumber: 5000
+      rateControl:
+          type: fixed-load
+          opts:
+            tps: 120
+      workload:
+        module: benchmarks/samples/fabric/fabcar/createCar.js
+    - label: Change car owner.
+      txDuration: 30
+      rateControl:
+        type: fixed-feedback-rate
+        opts:
+          tps: 120
+          transactionLoad: 600
+          progressAdjustmentInterval: 5
+          responseTimeThreshold: 5
+          unackLimit: 200
+          latencyWindow: 5
+          adjustmentStep: 0.3
+            
+      workload:
+        module: benchmarks/samples/fabric/fabcar/changeCarOwner.js
+        arguments:
+          assets: 500
+    - label: Query all cars.
+      txDuration: 30
+      rateControl:
+        type: fixed-feedback-rate
+        opts:
+          tps: 100
+          transactionLoad: 4000
+          progressAdjustmentInterval: 5
+          responseTimeThreshold: 5
+          unackLimit: 200
+          latencyWindow: 5
+          adjustmentStep: 0.3
+      workload:
+        module: benchmarks/samples/fabric/fabcar/queryAllCars.js
+        arguments:
+          assets: 500
+          startKey: '1'
+          endKey: '50'
+    - label: Query a car.
+      txDuration: 30
+      rateControl:
+        type: fixed-feedback-rate
+        opts:
+          tps: 1000
+          transactionLoad: 4000
+          progressAdjustmentInterval: 5
+          responseTimeThreshold: 5
+          unackLimit: 200
+          latencyWindow: 5
+          adjustmentStep: 0.3
+      workload:
+        module: benchmarks/samples/fabric/fabcar/queryCar.js
+        arguments:
+          assets: 500

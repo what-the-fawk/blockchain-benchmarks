@@ -2,13 +2,13 @@ from typing import List, Tuple
 import re
 import yaml
 
-from globals import get_model_type
+from globals import get_model_type, SRC_FOLDER
 
 # global data for machine learning, initialised ONCE
 # TODO: remove global variables
 controllable_params: List = []
 context: List = []
-configs: List[yaml.YAMLObject] = []
+configs: List[Tuple[yaml.YAMLObject, str]] = []
 
 
 def read_and_filter_config(config_path, exclude_patterns: List[str]):
@@ -51,7 +51,7 @@ def read_and_filter_config(config_path, exclude_patterns: List[str]):
                 full_path = f"{path}|{unit}" if unit else path
                 if not any(pattern.search(full_path) for pattern in compiled_exclude_patterns):
                     filtered_data.append({'name': full_path, 'type': vartype, 'bounds': search_space,
-                                           'config path': config_path, 'default value': number
+                                           'config idx': len(configs), 'default value': number
                                         })
 
         elif isinstance(node, (int, float)):
@@ -64,11 +64,11 @@ def read_and_filter_config(config_path, exclude_patterns: List[str]):
                     search_space = tuple([max(0, (node // 10) * 7), (node // 10) * 13 + 5])
 
                 filtered_data.append({'name': path, 'type': vartype, 'bounds': search_space,
-                                       'config path': config_path, 'default value': node
+                                       'config idx': len(configs), 'default value': node
                                     })
 
     traverse(config)
-    configs.append(config)
+    configs.append(tuple([config, config_path]))
     return filtered_data
 
 
@@ -78,8 +78,33 @@ def read_configs(cfgs: List[str]):
         extracted_data = read_and_filter_config(config_path=cfg, exclude_patterns=["port", "Port", "address", "maxRecvMsgSize", "maxSendMsgSize", "hostConfig.Memory"])
         controllable_params.extend(extracted_data)
 
-def apply(domain: List):
-    raise RuntimeError("apply() not implemented yet")
+def apply(X: List):
+    if len(X) != len(controllable_params):
+        raise ValueError(f"X has {len(X)} elements, but controllable_params has {len(controllable_params)} elements.")
+
+    for i in range(len(X)):
+        index = controllable_params[i]['config idx']
+        name = controllable_params[i]['name']
+
+        # fill config path bazed on name
+        internal_path = name.split('.')
+        parts = internal_path[-1].split('|')
+        assert(len(parts) > 0 and len(parts) <= 2)
+        internal_path[-1] = parts[0]
+
+        link = configs[0][index][internal_path[0]]
+        for j in range(1, len(internal_path)):
+            link = link[internal_path[j]]
+
+        if len(parts) == 1:
+            link = X[i]
+        else:
+            link = str(int(X[i])) + parts[1]
+
+    for cfg, path in configs:
+        with open(path, 'w') as f:
+            yaml.dump(cfg, f, default_flow_style=False)
+
     pass
 
 def transform_domain(domain: List) -> List:
@@ -106,17 +131,15 @@ def transform_domain(domain: List) -> List:
 
     return transformed_domain
 
-def crop_domain(domain: List, importance_idx: List[int]) -> Tuple[List, List]:
+# TODO: do not return domain, just ctx
+def fix_domain(domain: List, importance_idx: List[str], best_X) -> Tuple[List, List]:
     """
-    Crop the domain leaving only important features
+    Extract context from domain
     """
+    importance_idx = set([int(idx) for idx in importance_idx])
+    ctx = dict()
+    for i, item in enumerate(domain):
+        if i not in importance_idx:
+            ctx[item['name']] =  best_X[i]
 
-    cropped_domain = []
-    ctx = []
-    for i, item in domain:
-        if i in importance_idx:
-            cropped_domain.append(item.copy())
-        else:
-            ctx.append(item.copy())
-
-    return cropped_domain, ctx
+    return domain, ctx

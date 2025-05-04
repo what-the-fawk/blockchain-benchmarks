@@ -1,6 +1,6 @@
 import GPyOpt
 import numpy as np
-from domain import apply, transform_domain, controllable_params
+from domain import apply, transform_domain
 from globals import SRC_FOLDER, MAX_EVALUATIONS, get_model_type
 from feature_importance import shap_feature_importance, random_forest_feature_importance, lasso_feature_importance, permutation_feature_importance, gradient_boosting_feature_importance
 from network_manager import start_network, start_benchmark, stop_network, observe_data
@@ -12,10 +12,22 @@ from pySOT.experimental_design import LatinHypercube
 from pySOT.surrogate import RBFInterpolant  
 import pandas as pd
 
+MODEL_SPEC = ""
+
 def bench(X):
-    #TODO: actual ml
-    return np.random.rand()
-    raise RuntimeError("bench() not implemented yet")
+    #TODO: check how data with context is passed here
+    model_type = get_model_type()
+    if model_type == 'BO':
+        X = X[0]
+    elif model_type == 'DYCORS':
+        X = X
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
+    
+    # save point to file
+    with open(SRC_FOLDER + get_model_type() + "_" + MODEL_SPEC + "_points", "a") as f:
+        f.write("".join(map(lambda x: str(x) + ",", X)) + "\n")
+
     apply(X)
     start_network()
     start_benchmark()
@@ -26,10 +38,13 @@ def define_model(domain, **kwargs):
 
     opt = None
     dim = len(domain)
-    initial_points = 2 * dim + 1
+    initial_points = dim + 1
     model_type = get_model_type()
 
     if model_type == 'BO':
+
+        global MODEL_SPEC
+        MODEL_SPEC = kwargs.get('model_spec', "")
 
         opt = GPyOpt.methods.BayesianOptimization(
             f=bench,
@@ -55,9 +70,6 @@ def define_model(domain, **kwargs):
                 self.cont_var = np.array([i for i, item in enumerate(domain) if item['type'] == 'continuous'])
                 self.int_var = np.array([i for i, item in enumerate(domain) if item['type'] == 'discrete'])
                 self.info = "Hyperledger Fabric Tuning"
-
-                # print('continuous variables:', self.cont_var, '\ndiscrete variables:', self.int_var)
-                # raise RuntimeError("Debugging dycors")
 
             def eval(self, x):
                 return bench(x)
@@ -103,8 +115,8 @@ def run_model(opt: GPyOpt.methods.BayesianOptimization | SerialController, conte
 
         opt.run_optimization(max_iter=num_epochs, context=context, report_file=SRC_FOLDER + "BO_report_fullspace", evaluations_file=SRC_FOLDER + "BO_evals_fullspace")
         X, y = opt.get_evaluations()
+
     elif model_type == 'DYCORS':
-        print('running dycors')
         opt.run()
         X, y = opt.strategy.X, opt.strategy.fX
     else:

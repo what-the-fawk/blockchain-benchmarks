@@ -1,0 +1,65 @@
+name: Caliper Benchmarks
+version: "2.0.0"
+
+caliper:
+  blockchain: fabric
+
+channels:
+  # channelName of mychannel matches the name of the channel created by test network
+  - channelName: bayesian-channel # TODO: copy this from the test-network
+    # the chaincodeIDs of all the fabric chaincodes in caliper-benchmarks
+    contracts:
+    - id: fabcar
+
+organizations:
+  - mspid: Org1MSP
+    # Identities come from cryptogen created material for test-network
+    identities:
+      certificates:
+      - name: 'User1'
+        clientPrivateKey:
+          path: '../networks/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/priv_sk'
+        clientSignedCert:
+          path: '../networks/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem'
+    connectionProfile:
+      path: '../networks/organizations/peerOrganizations/org1.example.com/connection-org1.yaml'
+      discover: true
+
+  - mspid: Org2MSP
+    # Identities come from cryptogen created material for test-network
+    identities:
+      certificates:
+      - name: 'User1'
+        clientPrivateKey:
+          path: '../networks/organizations/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/keystore/priv_sk'
+        clientSignedCert:
+          path: '../networks/organizations/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/signcerts/User1@org2.example.com-cert.pem'
+    connectionProfile:
+      path: '../networks/organizations/peerOrganizations/org2.example.com/connection-org2.yaml'
+      discover: true
+
+  - mspid: Org3MSP
+    # Identities come from cryptogen created material for test-network
+    identities:
+      certificates:
+      - name: 'User1'
+        clientPrivateKey:
+          path: '../networks/organizations/peerOrganizations/org3.example.com/users/User1@org3.example.com/msp/keystore/priv_sk'
+        clientSignedCert:
+          path: '../networks/organizations/peerOrganizations/org3.example.com/users/User1@org3.example.com/msp/signcerts/User1@org3.example.com-cert.pem'
+    connectionProfile:
+      path: '../networks/organizations/peerOrganizations/org3.example.com/connection-org3.yaml'
+      discover: true
+  
+  - mspid: Org4MSP
+    # Identities come from cryptogen created material for test-network
+    identities:
+      certificates:
+      - name: 'User1'
+        clientPrivateKey:
+          path: '../networks/organizations/peerOrganizations/org4.example.com/users/User1@org4.example.com/msp/keystore/priv_sk'
+        clientSignedCert:
+          path: '../networks/organizations/peerOrganizations/org4.example.com/users/User1@org4.example.com/msp/signcerts/User1@org4.example.com-cert.pem'
+    connectionProfile:
+      path: '../networks/organizations/peerOrganizations/org4.example.com/connection-org4.yaml'
+      discover: true

@@ -5,20 +5,27 @@ import json
 def start_network():
 
     # up containers
-    subprocess.run('../networks/network.sh up createChannel -c bayesian-channel', shell=True, check=True)
+    result = subprocess.run('../networks/network.sh up createChannel -c bayesian-channel', shell=True, check=True)
+
+    if result.returncode != 0:
+        print("Error starting network")
+        return result.returncode
 
     #deploy chaincode
-    subprocess.run('../networks/network.sh deployCC -ccn fabcar -ccp ../caliper-benchmarks/src/fabric/samples/fabcar/go -ccl go -c bayesian-channel', shell=True, check=True)
+    result = subprocess.run('../networks/network.sh deployCC -ccn fabcar -ccp ../caliper-benchmarks/src/fabric/samples/fabcar/go -ccl go -c bayesian-channel', shell=True, check=True)
+    return result.returncode
 
 
 def start_benchmark():
-    subprocess.run('cd ../caliper-benchmarks &&' \
+    result = subprocess.run('cd ../caliper-benchmarks &&' \
     'npx caliper launch manager --caliper-workspace ./ --caliper-networkconfig networks/fabric/test-network.yaml '
     '--caliper-benchconfig benchmarks/samples/fabric/fabcar/config.yaml --caliper-flow-only-test --caliper-fabric-gateway-enabled',
     shell=True, check=True)
+    return result.returncode
 
 def stop_network():
-    subprocess.run('../networks/network.sh down', shell=True, check=True)
+    result = subprocess.run('../networks/network.sh down', shell=True)
+    return result.returncode
 
 def transform_caliper_html_to_json(html_file, output_json_file):
     """
@@ -77,6 +84,6 @@ def calculate_average_tps(json_file):
 
 
 def observe_data() -> float:
-    transform_caliper_html_to_json("../artefacts/benchmark_report.html", "../artefacts/benchmark_report.json")
-    average_tps = calculate_average_tps("../artefacts/benchmark_report.json")
+    transform_caliper_html_to_json("../caliper-benchmarks/report.html", "../caliper-benchmarks/report.json")
+    average_tps = calculate_average_tps("../caliper-benchmarks/report.json")
     return average_tps
