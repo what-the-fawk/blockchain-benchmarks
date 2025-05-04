@@ -92,7 +92,10 @@ def apply(X: List):
         assert(len(parts) > 0 and len(parts) <= 2)
         internal_path[-1] = parts[0]
 
-        link = configs[0][index][internal_path[0]]
+        cfg = configs[index][0]
+        # print(internal_path)
+        # print(internal_path[0])
+        link = cfg[internal_path[0]]
         for j in range(1, len(internal_path)):
             link = link[internal_path[j]]
 

@@ -1,0 +1,21 @@
+# Commands for running optimization process
+
+# BO
+
+docker run -it --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /usr/bin/docker:/usr/bin/docker \
+  --privileged \
+  fabric-bo:latest
+  
+  -p 7050:7050 \
+  -p 7053:7053 \
+  -p 9443:9443 \
+  -p 7051:7051 \
+  -p 9444:9444 \
+  -p 9051:9051 \
+  -p 9445:9445 \
+  -p 10051:10051 \
+  -p 10445:10445 \
+  -p 11051:11051 \
+  -p 11445:11445 \

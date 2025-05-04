@@ -1,57 +1,44 @@
 #! /bin/bash
 
-# Install the required packages
-# Update package list and install prerequisites
-sudo apt-get update
-sudo apt-get install -y \
-    apt-transport-https \
-    ca-certificates \
+sudo apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y \
     curl \
-    software-properties-common
+    python3.10 \
+    python3.10-dev \
+    python3.10-venv \
+    python3.10-distutils \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    git \
+    golang \
+    wget \
+    curl \
+    && apt-get clean
 
-# Add Docker's official GPG key
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+git clone https://github.com/what-the-fawk/blockchain-benchmarks && cd blockchain-benchmarks
+git checkout checkpoint1 & cd ..
 
-# Set up the stable Docker repository
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+VIRTUAL_ENV=/opt/venv
+python3.10 -m venv $VIRTUAL_ENV
+PATH="$VIRTUAL_ENV/bin:$PATH"
+pip3 install --no-cache-dir -r blockchain-benchmarks/ml/requirements.txt
 
-# Install Docker
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+sudo curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y nodejs
 
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+npm install --only=prod @hyperledger/caliper-cli && \
+npx caliper bind --caliper-bind-sut fabric:2.4
 
-# Verify installation
-docker --version
-docker-compose --version
+sudo apt-get update && apt-get install -y ca-certificates curl && \
+    install -m 0755 -d /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && \
+    chmod a+r /etc/apt/keyrings/docker.asc && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo ${UBUNTU_CODENAME:-$VERSION_CODENAME}) stable" > /etc/apt/sources.list.d/docker.list && \
+    apt-get update -y && \
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Install Go (Golang)
-GO_VERSION="1.21.1"
-curl -LO https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
-rm go${GO_VERSION}.linux-amd64.tar.gz
-
-# Set up Go environment variables
-echo "export PATH=\$PATH:/usr/local/go/bin" >> ~/.profile
-source ~/.profile
-
-# Verify Go installation
-go version
-
-# Install Node.js and npm
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Verify npm installation
-npm --version
-
-./install-fabric.sh d s b
-
-# Install Hyperledger Caliper CLI
-npm install --only=prod @hyperledger/caliper-cli@0.6.0
-npx caliper bind --caliper-bind-sut fabric:fabric-gateway
-
-# Verify Caliper installation
-caliper --version
+sudo systemctl start docker
+sudo systemctl enable docker
