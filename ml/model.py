@@ -11,6 +11,7 @@ from pySOT.strategy import DYCORSStrategy
 from pySOT.experimental_design import LatinHypercube
 from pySOT.surrogate import RBFInterpolant  
 import pandas as pd
+import time
 
 MODEL_SPEC = ""
 
@@ -28,11 +29,31 @@ def bench(X):
     with open(SRC_FOLDER + get_model_type() + "_" + MODEL_SPEC + "_points", "a") as f:
         f.write("".join(map(lambda x: str(x) + ",", X)) + "\n")
 
+    start_time = time.time()
     apply(X)
+    apply_time = time.time() - start_time
+
+    start_time = time.time()
     start_network()
+    start_network_time = time.time() - start_time
+
+    start_time = time.time()
     start_benchmark()
+    start_benchmark_time = time.time() - start_time
+
+    start_time = time.time()
     stop_network()
-    return observe_data()
+    stop_network_time = time.time() - start_time
+
+    print(f"Time spent in apply: {apply_time:.4f} seconds")
+    print(f"Time spent in start_network: {start_network_time:.4f} seconds")
+    print(f"Time spent in start_benchmark: {start_benchmark_time:.4f} seconds")
+    print(f"Time spent in stop_network: {stop_network_time:.4f} seconds")
+    exit(0)
+    point = observe_data()
+    with open(SRC_FOLDER + get_model_type() + "_" + MODEL_SPEC + "_points", "a") as f:
+        f.write("".join(str(point)) + "\n")
+    return point
 
 def define_model(domain, **kwargs):
 

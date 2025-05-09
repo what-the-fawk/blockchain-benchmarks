@@ -320,6 +320,21 @@ function networkUp() {
 
   checkPrereqs
 
+  # adapt for my chaincode
+  CC_NAME=fabcar
+  CC_SRC_PATH=../caliper-benchmarks/src/fabric/samples/fabcar/go
+  CC_SRC_LANGUAGE=go
+  CC_VERSION=1.0
+
+  # echo "Chaincode Name: $CC_NAME"
+  # echo "Chaincode Source Path: $CC_SRC_PATH"
+  # echo "Chaincode Source Language: $CC_SRC_LANGUAGE"
+  # echo "Chaincode Version: $CC_VERSION"
+  
+  infoln "Packaging chaincode"
+  ./scripts/packageCC.sh $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION &
+  pid1=$!
+
   # generate artifacts if they don't exist
   if [ ! -d "organizations/peerOrganizations" ]; then
     createOrgs
@@ -337,6 +352,11 @@ function networkUp() {
   $CONTAINER_CLI ps -a
   if [ $? -ne 0 ]; then
     fatalln "Unable to start network"
+  fi
+
+  wait $pid1
+  if [ $? -ne 0 ]; then
+    fatalln "Chaincode packaging failed"
   fi
 }
 

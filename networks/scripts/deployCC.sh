@@ -68,22 +68,51 @@ function checkPrereqs() {
 }
 
 #check for prerequisites
-checkPrereqs
+# checkPrereqs
 
-## package the chaincode
-./scripts/packageCC.sh $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION 
+# Will be in start of network.sh Up
+# ## package the chaincode
+
+# echo ${CC_SRC_PATH}
+# echo ${CC_SRC_LANGUAGE}
+# echo ${CC_VERSION}
+# echo ${CC_NAME}
+
+# ./scripts/packageCC.sh $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION 
 
 PACKAGE_ID=$(peer lifecycle chaincode calculatepackageid ${CC_NAME}.tar.gz)
 
 ## Install chaincode on peer0.org1 and peer0.org2
 infoln "Installing chaincode on peer0.org1..."
-installChaincode 1
+installChaincode 1 &
+pid1=$!
 infoln "Install chaincode on peer0.org2..."
-installChaincode 2
+installChaincode 2 &
+pid2=$!
 infoln "Install chaincode on peer0.org3..."
-installChaincode 3
+installChaincode 3 &
+pid3=$!
 infoln "Install chaincode on peer0.org4..."
 installChaincode 4
+
+# Wait for the background processes to complete
+wait $pid1
+if [ $? -ne 0 ]; then
+  errorln "Chaincode installation failed on peer0.org1"
+  exit 1
+fi
+
+wait $pid2
+if [ $? -ne 0 ]; then
+  errorln "Chaincode installation failed on peer0.org2"
+  exit 1
+fi
+
+wait $pid3
+if [ $? -ne 0 ]; then
+  errorln "Chaincode installation failed on peer0.org3"
+  exit 1
+fi
 
 resolveSequence
 
@@ -91,31 +120,53 @@ resolveSequence
 queryInstalled 1
 
 ## approve the definition for org1
-approveForMyOrg 1
+approveForMyOrg 1 &
+pid1=$!
 
 ## check whether the chaincode definition is ready to be committed
 ## expect org1 to have approved and org2 not to
-checkCommitReadiness 1 "\"Org1MSP\": true" "\"Org2MSP\": false" "\"Org3MSP\": false" "\"Org4MSP\": false"
-
+# checkCommitReadiness 1 "\"Org1MSP\": true" "\"Org2MSP\": false" "\"Org3MSP\": false" "\"Org4MSP\": false" &
 
 ## now approve also for org2
-approveForMyOrg 2
+approveForMyOrg 2 &
+pid2=$!
 
 ## check whether the chaincode definition is ready to be committed
 ## expect them both to have approved
-checkCommitReadiness 2 "\"Org1MSP\": true" "\"Org2MSP\": true" "\"Org3MSP\": false" "\"Org4MSP\": false"
+# checkCommitReadiness 2 "\"Org1MSP\": true" "\"Org2MSP\": true" "\"Org3MSP\": false" "\"Org4MSP\": false" &
 
 ## now approve also for org3
-approveForMyOrg 3
+approveForMyOrg 3 &
+pid3=$!
 
 ## check whether the chaincode definition is ready to be committed
 ## expect them all to have approved
-checkCommitReadiness 3 "\"Org1MSP\": true" "\"Org2MSP\": true" "\"Org3MSP\": true" "\"Org4MSP\": false"
+# checkCommitReadiness 3 "\"Org1MSP\": true" "\"Org2MSP\": true" "\"Org3MSP\": true" "\"Org4MSP\": false" &
 
 ## now approve also for org4
 approveForMyOrg 4
 ## check whether the chaincode definition is ready to be committed
 ## expect them all to have approved
+
+# Wait for the background processes to complete
+wait $pid1
+if [ $? -ne 0 ]; then
+  errorln "Approval failed for org1"
+  exit 1
+fi
+
+wait $pid2
+if [ $? -ne 0 ]; then
+  errorln "Approval failed for org2"
+  exit 1
+fi
+
+wait $pid3
+if [ $? -ne 0 ]; then
+  errorln "Approval failed for org3"
+  exit 1
+fi
+
 checkCommitReadiness 4 "\"Org1MSP\": true" "\"Org2MSP\": true" "\"Org3MSP\": true" "\"Org4MSP\": true"
 ## query whether the chaincode is installed
 
@@ -123,10 +174,32 @@ checkCommitReadiness 4 "\"Org1MSP\": true" "\"Org2MSP\": true" "\"Org3MSP\": tru
 commitChaincodeDefinition 1 2 3 4
 
 ## query on both orgs to see that the definition committed successfully
-queryCommitted 1
-queryCommitted 2
-queryCommitted 3
+queryCommitted 1 &
+pid1=$!
+queryCommitted 2 &
+pid2=$!
+queryCommitted 3 &
+pid3=$!
 queryCommitted 4
+
+# Wait for the background processes to complete
+wait $pid1
+if [ $? -ne 0 ]; then
+  errorln "Query committed failed on peer0.org1"
+  exit 1
+fi
+
+wait $pid2
+if [ $? -ne 0 ]; then
+  errorln "Query committed failed on peer0.org2"
+  exit 1
+fi
+
+wait $pid3
+if [ $? -ne 0 ]; then
+  errorln "Query committed failed on peer0.org3"
+  exit 1
+fi
 
 ## Invoke the chaincode - this does require that the chaincode have the 'initLedger'
 ## method defined

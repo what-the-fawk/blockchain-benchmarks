@@ -114,22 +114,62 @@ successln "Channel '$CHANNEL_NAME' created"
 
 ## Join all the peers to the channel
 infoln "Joining org1 peer to the channel..."
-joinChannel 1
+joinChannel 1 &
+pid1=$!
 infoln "Joining org2 peer to the channel..."
-joinChannel 2
+joinChannel 2 &
+pid2=$!
 infoln "Joining org3 peer to the channel..."
-joinChannel 3
+joinChannel 3 &
+pid3=$!
 infoln "Joining org4 peer to the channel..."
 joinChannel 4
+
+# wait for all peers to join
+wait $pid1
+if [ $? -ne 0 ]; then
+	fatalln "Joining org1 peer to the channel failed"
+fi
+
+wait $pid2
+if [ $? -ne 0 ]; then
+	fatalln "Joining org2 peer to the channel failed"
+fi
+
+wait $pid3
+if [ $? -ne 0 ]; then
+	fatalln "Joining org3 peer to the channel failed"
+fi
 
 ## Set the anchor peers for each org in the channel
 infoln "Setting anchor peer for org1..."
 setAnchorPeer 1
+pid1=$!
 infoln "Setting anchor peer for org2..."
 setAnchorPeer 2
+pid2=$!
 infoln "Setting anchor peer for org3..."
 setAnchorPeer 3
+pid3=$!
 infoln "Setting anchor peer for org4..."
 setAnchorPeer 4
+
+wait $pid1
+if [ $? -ne 0 ]; then
+	fatalln "Anchor org1 peer to the channel failed"
+fi
+
+wait $pid2
+if [ $? -ne 0 ]; then
+	fatalln "Anchor org2 peer to the channel failed"
+fi
+
+wait $pid3
+if [ $? -ne 0 ]; then
+	fatalln "Anchor org3 peer to the channel failed"
+fi
+
+# wait for all anchor peers to be set
+
 
 successln "Channel '$CHANNEL_NAME' joined"

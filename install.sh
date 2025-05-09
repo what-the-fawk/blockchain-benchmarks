@@ -26,9 +26,12 @@ pip3 install --no-cache-dir -r ./ml/requirements.txt
 sudo curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs
 
-npm install --only=prod @hyperledger/caliper-cli && \
-npx caliper bind --caliper-bind-sut fabric:2.4 && \
 npm install jq
+npm install --only=prod @hyperledger/caliper-cli && \
+npx caliper bind --caliper-bind-sut fabric:2.4
+
+sudo chmod 666 /var/run/docker.sock
+
 
 sudo apt-get update && apt-get install -y ca-certificates curl && \
     install -m 0755 -d /etc/apt/keyrings && \

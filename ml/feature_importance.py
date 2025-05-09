@@ -27,7 +27,7 @@ def random_forest_feature_importance(X, y):
 
 # 3. L1 Regularization (Lasso) Feature Importance
 def lasso_feature_importance(X, y):
-    model = Lasso(alpha=0.00001, max_iter=10000)
+    model = Lasso(alpha=0.01, max_iter=100000)
     model.fit(X, y)
     lasso_importance = pd.DataFrame({'Feature': X.columns, 'Lasso Coefficient': np.abs(model.coef_)})
     lasso_importance = lasso_importance.sort_values(by='Lasso Coefficient', ascending=False)
@@ -37,7 +37,7 @@ def lasso_feature_importance(X, y):
 def permutation_feature_importance(X, y):
     model = RandomForestRegressor(random_state=42)
     model.fit(X, y)
-    perm_importance = permutation_importance(model, X, y, n_repeats=10, random_state=42)
+    perm_importance = permutation_importance(model, X, y, n_repeats=300, random_state=42)
     perm_importance_df = pd.DataFrame({'Feature': X.columns, 'Permutation Importance': perm_importance.importances_mean})
     perm_importance_df = perm_importance_df.sort_values(by='Permutation Importance', ascending=False)
     return perm_importance_df

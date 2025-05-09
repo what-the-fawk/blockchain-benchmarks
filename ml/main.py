@@ -83,6 +83,11 @@ def main():
         "../networks/compose/docker/peercfg-org4/core.yaml",
         # "../networks/compose/docker/ordcfg/orderer.yaml",
     ])
+
+    # print(len(controllable_params))
+    # print("Feature 244: ", controllable_params[244])
+    #TODO: 15 important features
+    # exit(0)
     
     opt = define_model(domain=controllable_params)
 
