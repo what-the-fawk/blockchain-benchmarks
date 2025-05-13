@@ -5,6 +5,10 @@ import pandas as pd
 import numpy as np
 np.bool = np.bool_
 import shap
+from sklearn.decomposition import PCA
+from SALib import ProblemSpec
+from SALib.sample import saltelli
+from SALib.analyze import sobol
 
 # 1. SHAP Feature importance
 def shap_feature_importance(X, y):
@@ -37,7 +41,7 @@ def lasso_feature_importance(X, y):
 def permutation_feature_importance(X, y):
     model = RandomForestRegressor(random_state=42)
     model.fit(X, y)
-    perm_importance = permutation_importance(model, X, y, n_repeats=300, random_state=42)
+    perm_importance = permutation_importance(model, X, y, n_repeats=30, random_state=42, n_jobs=-1)
     perm_importance_df = pd.DataFrame({'Feature': X.columns, 'Permutation Importance': perm_importance.importances_mean})
     perm_importance_df = perm_importance_df.sort_values(by='Permutation Importance', ascending=False)
     return perm_importance_df
@@ -49,6 +53,50 @@ def gradient_boosting_feature_importance(X, y):
     gb_importance = pd.DataFrame({'Feature': X.columns, 'GB Importance': model.feature_importances_})
     gb_importance = gb_importance.sort_values(by='GB Importance', ascending=False)
     return gb_importance
+
+# 5. PCA Feature Importance
+def pca_feature_importance(X, y):
+    pca = PCA(n_components=15)
+    # X_pca = pca.fit_transform(X, y)
+    pca.fit(X, y)
+
+    loadings = pd.DataFrame(
+            np.abs(pca.components_),
+            columns=X.columns
+        )
+
+    explained_variance = pca.explained_variance_ratio_
+    weighted_loadings = loadings.multiply(explained_variance, axis=0)
+    importance_scores = weighted_loadings.sum(axis=0).sort_values(ascending=False)
+
+    results = pd.DataFrame({
+        'Feature': importance_scores.index,
+        'PCA Importance': importance_scores.values
+    })
+    return results
+
+# 6. SA Feature importance
+def sa_feature_importance(X, y, bounds):
+    model = RandomForestRegressor(n_estimators=200)
+    model.fit(X, y)
+
+    problem = {
+        'num_vars': X.shape[1],
+        'names': X.columns.tolist(),
+        'bounds': bounds,
+    }
+
+    samples = saltelli.sample(problem, 1024, calc_second_order=False)
+    predictions = model.predict(samples)
+    Si = sobol.analyze(problem, predictions, parallel=True, n_processors=6, calc_second_order=False)
+    sobol_df = pd.DataFrame({
+            'Feature': problem['names'],
+            'ST': Si['ST']
+
+        }).sort_values(by='ST', ascending=False)
+    sobol_df.reset_index(inplace=True)
+
+    return sobol_df
 
 # TODO: PCA, sensitivity analysis, etc.
 # def sensitivity_analysis_feature_importance(X, y):
