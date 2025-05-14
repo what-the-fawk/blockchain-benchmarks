@@ -3,7 +3,7 @@ test:
     number: 7
   rounds:
     - label: Create a car.
-      txNumber: 5000
+      txNumber: 2100
       rateControl:
           type: fixed-load
           opts:
@@ -11,34 +11,44 @@ test:
       workload:
         module: benchmarks/samples/fabric/fabcar/createCar.js
     - label: Change car owner.
-      txDuration: 30
+      txNumber: 1400
       rateControl:
-        type: fixed-feedback-rate
+        type: fixed-load
         opts:
-          tps: 120
-          transactionLoad: 600
-          progressAdjustmentInterval: 5
-          responseTimeThreshold: 5
-          unackLimit: 200
-          latencyWindow: 5
-          adjustmentStep: 0.3
+          tps: 200
+      # txDuration: 30
+      # rateControl:
+      #   type: fixed-feedback-rate
+      #   opts:
+      #     tps: 120
+      #     transactionLoad: 600
+      #     progressAdjustmentInterval: 5
+      #     responseTimeThreshold: 5
+      #     unackLimit: 200
+      #     latencyWindow: 5
+      #     adjustmentStep: 0.3
             
       workload:
         module: benchmarks/samples/fabric/fabcar/changeCarOwner.js
         arguments:
           assets: 500
     - label: Query all cars.
-      txDuration: 30
+      txNumber: 10000
       rateControl:
-        type: fixed-feedback-rate
+        type: fixed-load
         opts:
-          tps: 100
-          transactionLoad: 4000
-          progressAdjustmentInterval: 5
-          responseTimeThreshold: 5
-          unackLimit: 200
-          latencyWindow: 5
-          adjustmentStep: 0.3
+          tps: 2000
+      # txDuration: 30
+      # rateControl:
+      #   type: fixed-feedback-rate
+      #   opts:
+      #     tps: 100
+      #     transactionLoad: 4000
+      #     progressAdjustmentInterval: 5
+      #     responseTimeThreshold: 5
+      #     unackLimit: 200
+      #     latencyWindow: 5
+      #     adjustmentStep: 0.3
       workload:
         module: benchmarks/samples/fabric/fabcar/queryAllCars.js
         arguments:
@@ -46,17 +56,22 @@ test:
           startKey: '1'
           endKey: '50'
     - label: Query a car.
-      txDuration: 30
+      # txDuration: 30
+      txNumber: 10000
       rateControl:
-        type: fixed-feedback-rate
+        type: fixed-load
         opts:
-          tps: 1000
-          transactionLoad: 4000
-          progressAdjustmentInterval: 5
-          responseTimeThreshold: 5
-          unackLimit: 200
-          latencyWindow: 5
-          adjustmentStep: 0.3
+          tps: 2000
+      # rateControl:
+      #   type: fixed-feedback-rate
+      #   opts:
+      #     tps: 1000
+      #     transactionLoad: 4000
+      #     progressAdjustmentInterval: 5
+      #     responseTimeThreshold: 5
+      #     unackLimit: 200
+      #     latencyWindow: 5
+      #     adjustmentStep: 0.3
       workload:
         module: benchmarks/samples/fabric/fabcar/queryCar.js
         arguments:

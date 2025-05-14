@@ -9,6 +9,7 @@ from globals import get_model_type, SRC_FOLDER
 controllable_params: List = []
 context: List = []
 configs: List[Tuple[yaml.YAMLObject, str]] = []
+current_domain: List = []
 
 
 def read_and_filter_config(config_path, exclude_patterns: List[str]):
@@ -71,22 +72,35 @@ def read_and_filter_config(config_path, exclude_patterns: List[str]):
     configs.append(tuple([config, config_path]))
     return filtered_data
 
-
 # add numeric params to global list
 def read_configs(cfgs: List[str]):
     for cfg in cfgs:
         extracted_data = read_and_filter_config(config_path=cfg, exclude_patterns=["port", "Port", "address", "maxRecvMsgSize", "maxSendMsgSize", "hostConfig.Memory"])
         controllable_params.extend(extracted_data)
 
+    global current_domain
+    current_domain = controllable_params
+
+def cut_domain(indices: List[int]):
+    global current_domain
+    current_domain = [current_domain[i] for i in indices]
+
+def restore_domain():
+    global current_domain
+    current_domain = controllable_params
+    
+
 def apply(X: List):
-    if len(X) != len(controllable_params):
-        raise ValueError(f"X has {len(X)} elements, but controllable_params has {len(controllable_params)} elements.")
+    print(X)
 
     for i in range(len(X)):
-        index = controllable_params[i]['config idx']
-        name = controllable_params[i]['name']
+        index = current_domain[i]['config idx']
+        name = current_domain[i]['name']
+        vartype = current_domain[i]['type']
 
-        # fill config path bazed on name
+        # raise RuntimeError("X is not for cut spaces")
+
+        # fill config path based on name
         internal_path = name.split('.')
         parts = internal_path[-1].split('|')
         assert(len(parts) > 0 and len(parts) <= 2)
@@ -102,7 +116,15 @@ def apply(X: List):
         if len(parts) == 1:
             link = X[i]
         else:
-            link = str(int(X[i])) + parts[1]
+            value = X[i]
+            if vartype == 'continuous':
+                value = float(X[i])
+            elif vartype == 'discrete':
+                value = int(X[i])
+            else:
+                pass
+
+            link = str(value) + parts[1]
 
     for cfg, path in configs:
         with open(path, 'w') as f:

@@ -16,17 +16,9 @@ import time
 MODEL_SPEC = ""
 
 def bench(X):
-    #TODO: check how data with context is passed here
-    model_type = get_model_type()
-    if model_type == 'BO':
-        X = X[0]
-    elif model_type == 'DYCORS':
-        X = X
-    else:
-        raise ValueError(f"Unknown model type: {model_type}")
     
     # save point to file
-    with open(SRC_FOLDER + get_model_type() + "_" + MODEL_SPEC + "_points", "a") as f:
+    with open(SRC_FOLDER + "X" + "_points", "a") as f:
         f.write("".join(map(lambda x: str(x) + ",", X)) + "\n")
 
     start_time = time.time()
@@ -49,9 +41,9 @@ def bench(X):
     print(f"Time spent in start_network: {start_network_time:.4f} seconds")
     print(f"Time spent in start_benchmark: {start_benchmark_time:.4f} seconds")
     print(f"Time spent in stop_network: {stop_network_time:.4f} seconds")
-    exit(0)
+
     point = observe_data()
-    with open(SRC_FOLDER + get_model_type() + "_" + MODEL_SPEC + "_points", "a") as f:
+    with open(SRC_FOLDER + "Y" + "_points", "a") as f:
         f.write("".join(str(point)) + "\n")
     return point
 

@@ -21,6 +21,8 @@ from SALib import ProblemSpec
 from sklearn.decomposition import PCA
 import sys
 
+from optimizer import BayesianOptimizer
+
 from feature_importance import (
     shap_feature_importance,
     random_forest_feature_importance,
@@ -51,6 +53,8 @@ from model import (
     run_model
 )
 
+from objective import objective
+
 def clear_artefacts():
     artefacts_folder = os.path.join(SRC_FOLDER)
     for file_name in os.listdir(artefacts_folder):
@@ -59,21 +63,38 @@ def clear_artefacts():
             os.remove(file_path)
 
 
-# 
+from copy import deepcopy
+from model import bench
+from domain import restore_domain
+
 def main():
 
-    if "-m" in sys.argv:
-        m_flag_index = sys.argv.index("-m")
-        if m_flag_index + 1 < len(sys.argv):
-            m_flag_value = sys.argv[m_flag_index + 1]
-            set_model_type(m_flag_value)
+    AF = None
+    DR = None
+
+    if "-a" in sys.argv:
+        flag_index = sys.argv.index("-a")
+        if flag_index + 1 < len(sys.argv):
+            flag_value = sys.argv[flag_index + 1]
+            AF = flag_value
         else:
-            raise ValueError("Flag -m provided but no value specified.")
+            raise ValueError("Flag -a provided but no value specified.")
     else:
-        m_flag_value = None
-        print("Flag -m not provided.")
+        raise ValueError("Flag -a not provided.")
+
+    if "-d" in sys.argv:
+        flag_index = sys.argv.index("-d")
+        if flag_index + 1 < len(sys.argv):
+            flag_value = sys.argv[flag_index + 1]
+            DR = flag_value
+        else:
+            raise ValueError("Flag -d provided but no value specified.")
+    else:
+        raise ValueError("Flag -m not provided.")
 
     clear_artefacts()
+
+    set_model_type('BO') # legacy
 
     read_configs([
         "../networks/configtx/configtx.yaml",
@@ -83,93 +104,68 @@ def main():
         "../networks/compose/docker/peercfg-org4/core.yaml",
         # "../networks/compose/docker/ordcfg/orderer.yaml",
     ])
-
-    # print(len(controllable_params))
-    # print("Feature 244: ", controllable_params[244])
-    #TODO: 15 important features
-    # exit(0)
     
-    opt = define_model(domain=controllable_params)
+    domain = deepcopy(controllable_params)
+    assert len(domain) > 0, "Domain is empty"
+    print("Domain:", len(domain))
 
-    model_type = get_model_type()
-    num_epochs = MAX_EVALUATIONS
+    # extract experimental design
+    X = pd.read_csv('../design/X_initial', header=None)
+    X.columns = ['feature_' + str(i) for i in range(X.shape[1])]
+    X = X.iloc[:, :-1]
+    X = X.iloc[:len(X.columns), :]
 
-    if model_type == 'BO':
-        num_epochs = BO_INIT_EVALUATIONS
+    y = pd.read_csv('../design/Y_initial', header=None).iloc[:len(X.columns), :]
+    y.columns = ['target']
 
-    X, y = run_model(opt, num_epochs=num_epochs)
+    # calibrate y
+    pointx = X.iloc[0, :]
+    pointy = y.iloc[0, :]
 
-    with open(SRC_FOLDER + model_type + "_X.csv", "w") as f:
-        X.to_csv(f, index=False)
-    with open(SRC_FOLDER + model_type + "_y.csv", "w") as f:
-        pd.DataFrame(y).to_csv(f, index=False)
+    ys = [450, 451, 452, 453, 454, 455, 456, 457, 458, 459]
 
-    max_y_index = np.argmax(y)
-    best_X = X.iloc[max_y_index]
+    # for _ in range(10):
+    #     point = bench(pointx)
+    #     ys.append(point)
 
-    best_point_file = SRC_FOLDER + model_type + "_best_point.json"
-    with open(best_point_file, "w") as f:
-        json.dump(best_X.to_dict(), f, indent=4)
-    print(f"Best point saved to {best_point_file}")
-    
+    average_y = np.mean([val for val in ys if val != min(ys)])
+    print(ys)
+    print(average_y)
 
-    # Feature importance
-    if model_type == 'BO':
-        relevant_features_num = 20
+    # calibrate values
+    ratio = average_y / pointy
+    print("Ratio:", ratio)
+    print("Noise:", np.std(ys))
 
-        shap_top_features = shap_feature_importance(X, y).head(relevant_features_num)['Feature'].tolist()
-        rf_top_features = random_forest_feature_importance(X, y).head(relevant_features_num)['Feature'].tolist()
-        lasso_top_features = lasso_feature_importance(X, y).head(relevant_features_num)['Feature'].tolist()
-        permutation_top_features = permutation_feature_importance(X, y).head(relevant_features_num)['Feature'].tolist()
-        gb_top_features = gradient_boosting_feature_importance(X, y).head(relevant_features_num)['Feature'].tolist()
+    # multiply column target by ratio
+    target = y['target'].tolist()
+    calibrated_y = [item * ratio for item in target]
+    y = pd.DataFrame(calibrated_y, columns=['target'])
 
-        # convert into GpyOpt X, y format
-        X = X.to_numpy()
-        y = np.array(y).reshape(-1, 1)
+    from objective import clear_initial_design
 
-        shap_domain, shap_ctx = fix_domain(controllable_params, shap_top_features, best_X=best_X)
-        opt = define_model(domain=shap_domain, X=X, y=y, model_spec="shap")
-        X_shap, y_shap = run_model(opt, context=shap_ctx, num_epochs=MAX_EVALUATIONS - BO_INIT_EVALUATIONS)
-        with open(SRC_FOLDER + model_type + "_shapX.csv", "w") as f:
-            X_shap.to_csv(f, index=False)
-        with open(SRC_FOLDER + model_type + "_shapy.csv", "w") as f:
-            pd.DataFrame(y_shap).to_csv(f, index=False)
+    for AF in ['DYCORS']:
+        for DR in ['shap', 'rembo']:
+            print(f"Running {AF} with {DR}")
+            bo = BayesianOptimizer(deepcopy(X), deepcopy(y), deepcopy(domain), AF, DR, n_iter=1)
+            bo.run()
+            clear_initial_design()
+            restore_domain()
 
-        rf_domain, rf_ctx = fix_domain(controllable_params, rf_top_features, best_X=best_X)
-        opt = define_model(domain=rf_domain, X=X, y=y, model_spec="rf")
-        X_rf, y_rf = run_model(opt, context=rf_ctx)
+    raise RuntimeError("Finished")
 
-        with open(SRC_FOLDER + model_type + "_rfX.csv", "w") as f:
-            X_rf.to_csv(f, index=False)
-        with open(SRC_FOLDER + model_type  + "_rfy.csv", "w") as f:
-            pd.DataFrame(y_rf).to_csv(f, index=False)
+    # create and run model
+    optimizer = BayesianOptimizer(
+        X=X,
+        y=y,
+        domain=domain,
+        AF=AF,
+        DR=DR,
+        n_iter=MAX_EVALUATIONS,
+        n_relevant_features=15
+    )
 
-        lasso_domain, lasso_ctx = fix_domain(controllable_params, lasso_top_features, best_X=best_X)
-        opt = define_model(domain=lasso_domain, X=X, y=y, model_spec="lasso")
-        X_lasso, y_lasso = run_model(opt, context=lasso_ctx, num_epochs=MAX_EVALUATIONS - BO_INIT_EVALUATIONS)
-        
-        with open(SRC_FOLDER + model_type  + "_lassoX.csv", "w") as f:
-            X_lasso.to_csv(f, index=False)
-        with open(SRC_FOLDER + model_type  + "_lassoy.csv", "w") as f:
-            pd.DataFrame(y_lasso).to_csv(f, index=False)
-
-        permutation_domain, permutation_ctx = fix_domain(controllable_params, permutation_top_features, best_X=best_X)
-        opt = define_model(domain=permutation_domain, X=X, y=y, model_spec="permutation")
-        X_permutation, y_permutation = run_model(opt, context=permutation_ctx, num_epochs=MAX_EVALUATIONS - BO_INIT_EVALUATIONS)
-        
-        with open(SRC_FOLDER + model_type  + "_permutationX.csv", "w") as f:
-            X_permutation.to_csv(f, index=False)
-        with open(SRC_FOLDER + model_type  + "_permutationy.csv", "w") as f:
-            pd.DataFrame(y_permutation).to_csv(f, index=False)
-
-        gb_domain, gb_ctx = fix_domain(controllable_params, gb_top_features, best_X=best_X)
-        opt = define_model(domain=gb_domain, X=X, y=y, model_spec="gb")
-        X_gb, y_gb = run_model(opt, context=gb_ctx, num_epochs=MAX_EVALUATIONS - BO_INIT_EVALUATIONS)
-        
-        with open(SRC_FOLDER + model_type  + "_gbX.csv", "w") as f:
-            X_gb.to_csv(f, index=False)
-        with open(SRC_FOLDER + model_type  + "_gby.csv", "w") as f:
-            pd.DataFrame(y_gb).to_csv(f, index=False)
+    optimizer.run()
 
 
 if __name__ == "__main__":

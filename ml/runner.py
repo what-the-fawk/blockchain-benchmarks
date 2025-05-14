@@ -3,20 +3,17 @@ import sys
 import os
 
 def run_nohup_detached():
-    # Path to your log (relative to cwd or absolute)
     log_path = os.path.join("..", "artefacts.log")
-    # Open the log file in append mode
     log_file = open(log_path, "a")
 
-    # Build the full command: nohup python3.10 main.py -m BO
     cmd = [
         "nohup",
-        "python3.10",  # or hardcode "python3.10"
+        "python3.10",
         "main.py",
-        "-m", "BO"
+        "-a", "FILL_IN",
+        "-d", "FILL_IN",
     ]
 
-    # On POSIX, start_new_session detaches the child (like setsid())
     popen_kwargs = {
         "stdout": log_file,
         "stderr": log_file,
@@ -24,10 +21,7 @@ def run_nohup_detached():
         "start_new_session": True,
     }
 
-    # Launch
     subprocess.Popen(cmd, **popen_kwargs)
-
-    # Close our handle; child keeps writing
     log_file.close()
 
 if __name__ == "__main__":
