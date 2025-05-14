@@ -122,11 +122,11 @@ def main():
     pointx = X.iloc[0, :]
     pointy = y.iloc[0, :]
 
-    ys = [450, 451, 452, 453, 454, 455, 456, 457, 458, 459]
+    ys = []
 
-    # for _ in range(10):
-    #     point = bench(pointx)
-    #     ys.append(point)
+    for _ in range(10):
+        point = bench(pointx)
+        ys.append(point)
 
     average_y = np.mean([val for val in ys if val != min(ys)])
     print(ys)
@@ -141,18 +141,6 @@ def main():
     target = y['target'].tolist()
     calibrated_y = [item * ratio for item in target]
     y = pd.DataFrame(calibrated_y, columns=['target'])
-
-    from objective import clear_initial_design
-
-    for AF in ['DYCORS']:
-        for DR in ['shap', 'rembo']:
-            print(f"Running {AF} with {DR}")
-            bo = BayesianOptimizer(deepcopy(X), deepcopy(y), deepcopy(domain), AF, DR, n_iter=1)
-            bo.run()
-            clear_initial_design()
-            restore_domain()
-
-    raise RuntimeError("Finished")
 
     # create and run model
     optimizer = BayesianOptimizer(
