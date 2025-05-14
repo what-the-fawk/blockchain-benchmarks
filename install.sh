@@ -19,7 +19,7 @@ sudo apt-get update && apt-get install -y software-properties-common && \
     && apt-get clean
 
 VIRTUAL_ENV=/opt/venv
-python3.10 -m venv $VIRTUAL_ENV
+sudo python3.10 -m venv $VIRTUAL_ENV
 PATH="$VIRTUAL_ENV/bin:$PATH"
 pip3 install --no-cache-dir -r ./ml/requirements.txt
 
