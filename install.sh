@@ -47,8 +47,8 @@ sudo chmod 666 /var/run/docker.sock
 sudo ./install-fabric.sh
 sudo ./install-caliper.sh
 
-cp ./benchmark/bench-cfg/config.yaml ./caliper-benchmarks/benchmarks/samples/fabric/fabcar/config.yaml
-cp ./benchmark/network-cfg/test-network.yaml ./caliper-benchmarks/networks/fabric/test-network.yaml
+sudo cp ./benchmark/bench-cfg/config.yaml ./caliper-benchmarks/benchmarks/samples/fabric/fabcar/config.yaml
+sudo cp ./benchmark/network-cfg/test-network.yaml ./caliper-benchmarks/networks/fabric/test-network.yaml
 sudo rm -rf ./caliper-benchmarks/.git
 sudo chmod 777 ./caliper-benchmarks/src/fabric/samples/fabcar/go
 sudo chmod 777 ./caliper-benchmarks/src/fabric/samples/fabcar/go/go.*
