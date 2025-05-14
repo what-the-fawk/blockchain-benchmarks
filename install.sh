@@ -44,5 +44,7 @@ sudo apt-get update && apt-get install -y ca-certificates curl && \
 sudo systemctl start docker
 sudo systemctl enable docker
 
+./install-fabric.sh
+./install-caliper.sh
 cp ./benchmark/bench-cfg/config.yaml ./caliper-benchmarks/benchmarks/samples/fabric/fabcar/config.yaml
 cp ./benchmark/network-cfg/test_network.yaml ./caliper-benchmarks/networks/fabric/network-config.yaml
