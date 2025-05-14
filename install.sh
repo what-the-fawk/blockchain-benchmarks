@@ -30,7 +30,6 @@ npm install jq
 npm install --only=prod @hyperledger/caliper-cli && \
 npx caliper bind --caliper-bind-sut fabric:2.4
 
-sudo chmod 666 /var/run/docker.sock
 
 
 sudo apt-get update && apt-get install -y ca-certificates curl && \
@@ -44,7 +43,9 @@ sudo apt-get update && apt-get install -y ca-certificates curl && \
 sudo systemctl start docker
 sudo systemctl enable docker
 
-./install-fabric.sh
-./install-caliper.sh
+sudo chmod 666 /var/run/docker.sock
+sudo ./install-fabric.sh
+sudo ./install-caliper.sh
+
 cp ./benchmark/bench-cfg/config.yaml ./caliper-benchmarks/benchmarks/samples/fabric/fabcar/config.yaml
-cp ./benchmark/network-cfg/test_network.yaml ./caliper-benchmarks/networks/fabric/network-config.yaml
+cp ./benchmark/network-cfg/test-network.yaml ./caliper-benchmarks/networks/fabric/network-config.yaml
